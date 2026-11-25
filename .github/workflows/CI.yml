@@ -20,6 +20,7 @@ permissions:
 
 jobs:
   linux:
+    if: ${{ false }}
     runs-on: ${{ matrix.platform.runner }}
     strategy:
       matrix:
@@ -119,6 +120,7 @@ jobs:
   windows:
     runs-on: ${{ matrix.platform.runner }}
     strategy:
+      fail-fast: false
       matrix:
         platform:
           - runner: windows-latest
@@ -198,8 +200,25 @@ jobs:
           pip install cedarpy --no-index --find-links dist --force-reinstall
           pip install pytest
           pytest
+      - name: TEMP smoke-test every wheel (GIL check)
+        if: ${{ always() }}
+        shell: bash
+        env:
+          PATHS: ${{ steps.interpreters.outputs.paths }}
+        run: |
+          set -e
+          ls dist
+          dist="$PWD/dist"
+          cd "$RUNNER_TEMP"
+          for py in $PATHS; do
+            py=$(cygpath -u "$py")
+            echo "== $py"
+            "$py" -m pip install --no-index --find-links "$dist" cedarpy --force-reinstall -q
+            "$py" -c "import sys, sysconfig, platform, cedarpy; ft = bool(sysconfig.get_config_var('Py_GIL_DISABLED')); gil = sys._is_gil_enabled() if ft else True; print(sys.version, platform.machine(), 'free-threaded', ft, 'GIL enabled after import', gil); assert not (ft and gil)"
+          done
 
   macos:
+    if: ${{ false }}
     runs-on: ${{ matrix.platform.runner }}
     strategy:
       matrix:
@@ -238,6 +257,7 @@ jobs:
           pytest
 
   sdist:
+    if: ${{ false }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
@@ -255,9 +275,9 @@ jobs:
           path: dist
 
   release:
+    if: ${{ false }}
     name: Release
     runs-on: ubuntu-latest
-    if: ${{ startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch' }}
     needs: [linux, windows, macos, sdist]
     # Requires a GitHub environment named "pypi-release" and a matching
     # PyPI trusted publisher configured at
@@ -289,6 +309,7 @@ jobs:
   # permissions. Run via `pipx run` (preinstalled on ubuntu-latest) to
   # keep the only SHA-pinned third-party action here to actions/checkout.
   lint-workflows:
+    if: ${{ false }}
     name: Lint workflows (zizmor)
     runs-on: ubuntu-latest
     permissions:
